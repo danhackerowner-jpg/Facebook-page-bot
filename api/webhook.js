@@ -1,10 +1,15 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "verify_token_here";
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "key";
 const API_BASE = "https://graph.facebook.com/v20.0";
+
+// --- Resolve __dirname for ES modules ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ---- send helper ----
 async function sendMessage(sender_psid, message) {
@@ -22,9 +27,9 @@ async function sendMessage(sender_psid, message) {
 // ---- load commands ----
 const commands = new Map();
 const commandsDir = path.join(process.cwd(), "commands");
-fs.readdirSync(commandsDir).forEach((file) => {
+fs.readdirSync(commandsDir).forEach(async (file) => {
   if (file.endsWith(".js")) {
-    const mod = require(path.join(commandsDir, file));
+    const mod = await import(path.join(commandsDir, file));
     if (mod?.name && typeof mod.execute === "function") {
       commands.set(mod.name, mod);
       if (Array.isArray(mod.aliases)) {
@@ -34,8 +39,9 @@ fs.readdirSync(commandsDir).forEach((file) => {
   }
 });
 
+// ---- webhook handler ----
 export default async function handler(req, res) {
-  // ---- verification request ----
+  // Verification handshake
   if (req.method === "GET") {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
@@ -43,7 +49,7 @@ export default async function handler(req, res) {
 
     if (mode && token) {
       if (mode === "subscribe" && token === VERIFY_TOKEN) {
-        console.log("Webhook verified!");
+        console.log("Webhook verified ✅");
         return res.status(200).send(challenge);
       } else {
         return res.sendStatus(403);
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ---- webhook events ----
+  // Handle messages
   if (req.method === "POST") {
     const body = req.body;
     if (body.object === "page") {
@@ -78,10 +84,14 @@ export default async function handler(req, res) {
               }
             } catch (e) {
               console.error("Command error:", e);
-              await sendMessage(psid, { text: "⚠️ Command Error: report this to Daniel" });
+              await sendMessage(psid, {
+                text: "⚠️ Command Error: report this to Daniel"
+              });
             }
           } else {
-            await sendMessage(psid, { text: "❓ command do not exist. type 'help' list of all commands." });
+            await sendMessage(psid, {
+              text: "❓ Command does not exist. Type 'help' to list all commands."
+            });
           }
         }
       }
@@ -92,4 +102,5 @@ export default async function handler(req, res) {
   }
 
   res.sendStatus(405);
-}
+  }
+          

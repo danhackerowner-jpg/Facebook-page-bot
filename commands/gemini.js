@@ -9,7 +9,7 @@ module.exports = {
 
     try {
       // 👉 Put your Gemini API key here since repo is private
-      const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+      const GEMINI_API_KEY = "AIzaSyDdNBRvQq9wALJEgG2sRGhoIy08BhRrIgs";
       const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
       const response = await axios.post(
